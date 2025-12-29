@@ -40,6 +40,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     else:
         role = ""
 
+    if not role and form_data.username != settings.ORACLE_SERVICE_USERNAME.lower():
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
     
     exp = datetime.datetime.now() + datetime.timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
     payload = {"sub": form_data.username, "role": role, "exp": exp}
@@ -66,7 +68,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 #     if pool:
 #         try:
 #             maybe_cm = pool.acquire(user=request.username)
-#             cm = await 3eded(maybe_cm)
+#             cm = await await_if_needed(maybe_cm)
 #             async with cm as conn:
 #                 try:
 #                     async with conn.cursor() as cur:
@@ -81,6 +83,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 #     else:
 #         role = ""
 
+#     if not role and request.username != settings.ORACLE_SERVICE_USERNAME:
+#         raise HTTPException(status_code=401, detail="Invalid username or password.")
     
 #     exp = datetime.datetime.now() + datetime.timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
 #     payload = {"sub": request.username, "role": role, "exp": exp}
