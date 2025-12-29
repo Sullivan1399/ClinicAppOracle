@@ -1,0 +1,155 @@
+/* --- 1. RESET & VARIABLES --- */
+:root {
+    --primary-color: #007bff; /* Xanh y tế */
+    --primary-dark: #0056b3;
+    --secondary-color: #6c757d;
+    --background-bg: #f4f6f9;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --border-radius: 8px;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-bg);
+    color: var(--text-color);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* --- 2. LAYOUT & CONTAINER --- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    width: 100%;
+}
+
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* Full màn hình */
+}
+
+/* --- 3. COMPONENTS: CARD --- */
+.card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 400px; /* Giới hạn chiều rộng form login */
+}
+
+.card h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: var(--primary-color);
+}
+
+/* --- 4. COMPONENTS: FORM --- */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+input[type="text"],
+input[type="password"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+/* --- 5. COMPONENTS: BUTTONS --- */
+.btn {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    width: 100%; /* Full width cho nút login */
+    transition: background 0.3s;
+    text-align: center;
+}
+
+.btn:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: var(--secondary-color);
+}
+
+/* --- 6. UTILITIES --- */
+.error {
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.success {
+    color: #28a745;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* --- 7. DASHBOARD LAYOUT (Cho các trang sau) --- */
+.navbar {
+    background: var(--card-bg);
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-color);
+    margin-left: 20px;
+    font-weight: 500;
+}
+
+.nav-links a:hover {
+    color: var(--primary-color);
+}
+
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+
+th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+
+th { background-color: #f8f9fa; }
+
+.action-btn { margin-right: 5px; cursor: pointer; color: blue;}
+
+.delete-btn { color: red; }

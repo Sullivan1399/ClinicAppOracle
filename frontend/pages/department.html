@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý Khoa - Clinic App</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">Clinic Manager</div>
+        <div class="nav-links">
+            <a href="dashboard_admin.html">Dashboard</a>
+            <a href="#" onclick="logout()">Đăng xuất</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Quản lý Khoa (Department)</h2>
+            
+            <form id="dept-form" style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <input type="hidden" id="dept-id">
+                <input type="text" id="dept-name" placeholder="Nhập tên khoa..." required style="flex: 1;">
+                <button type="submit" class="btn" id="btn-save">Thêm mới</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel" style="display:none;" onclick="resetForm()">Hủy</button>
+            </form>
+
+            <p id="msg" class="success"></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên Khoa</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="dept-list">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../static/js/api.js"></script>
+    <script src="../static/js/department.js"></script>
+    <script>
+        // Hàm logout nhanh
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>
