@@ -15,6 +15,7 @@ from app.services.medicineService import MedicineService
 from app.services.prescriptionService import PrescriptionService
 from app.services.visitService import VisitService
 from app.models.staff import StaffInfo
+from app.services.auditService import AuditService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -87,3 +88,10 @@ async def get_current_staff_details(
         raise HTTPException(status_code=401, detail="User profile not found or inactive.")
     
     return staff_info
+
+def get_audit_service(conn = Depends(get_db)) -> AuditService:
+    """
+    Inject AuditService với kết nối database của user hiện tại.
+    Lưu ý: User đăng nhập (ví dụ: admin01) cần có quyền SELECT trên AUDSYS.UNIFIED_AUDIT_TRAIL
+    """
+    return AuditService(conn)

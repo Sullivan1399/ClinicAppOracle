@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.config.database import init_db_pool, close_db_pool
-from app.routers import authRouter, patientRouter, departmentRouter, medicineRouter, prescriptionRouter, staffRouter, visitRouter   
+from app.routers import authRouter, patientRouter, departmentRouter, medicineRouter, prescriptionRouter, staffRouter, visitRouter, auditRouter 
 
 app = FastAPI(
     title="Clinic Management Application"
@@ -28,7 +28,7 @@ app.include_router(staffRouter.router, prefix="/staff", tags=["Staff"])
 app.include_router(medicineRouter.router, prefix="/medicine", tags=["Medicine"])
 app.include_router(prescriptionRouter.router, prefix="/prescription", tags=["Prescription"])
 app.include_router(visitRouter.router, prefix="/visit", tags=["Visit"])
-
+app.include_router(auditRouter.router, prefix="/audit", tags=["Audit & Monitoring"])
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def read_root():
     index_path = "./frontend/pages/login.html"

@@ -73,6 +73,25 @@ async def create_visit(
 # =================================================================
 # 3. NHÓM API TRA CỨU CHUNG / QUẢN LÝ (COMMON / ADMIN)
 # =================================================================
+@router.get("/history", response_model=List[VisitResponse])
+async def read_doctor_history(
+    service: VisitService = Depends(get_visit_service),
+    current_staff: StaffInfo = Depends(get_current_staff_details)
+):
+    """
+    API riêng để bác sĩ xem lại danh sách bệnh nhân mình đã khám.
+    Tự động lọc theo staff_id của người đang đăng nhập.
+    """
+    if current_staff.role != 'DOCTOR':
+        raise HTTPException(status_code=403, detail="Chỉ bác sĩ mới có lịch sử khám bệnh.")
+    return await service.get_visits(staff_id=current_staff.staff_id)
+
+@router.get("/{visit_id}", response_model=VisitResponse)
+async def read_visit_detail(
+    visit_id: int, 
+    service: VisitService = Depends(get_visit_service)
+):
+    return await service.get_visit_by_id(visit_id)
 
 @router.get("/", response_model=List[VisitResponse])
 async def read_visits(
@@ -85,13 +104,6 @@ async def read_visits(
     """
     return await service.get_visits(staff_id, patient_id)
 
-@router.get("/{visit_id}", response_model=VisitResponse)
-async def read_visit_detail(
-    visit_id: int, 
-    service: VisitService = Depends(get_visit_service)
-):
-    """Xem chi tiết một lượt khám"""
-    return await service.get_visit_by_id(visit_id)
 
 # Các API Update/Delete cơ bản (thường dành cho Admin sửa sai sót)
 @router.put("/{visit_id}")

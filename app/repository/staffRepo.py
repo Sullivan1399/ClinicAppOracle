@@ -8,8 +8,8 @@ class StaffRepository(BaseRepo):
         sql = """
             SELECT s.staff_id, s.full_name, s.username, s.role, s.phone, s.email, 
                    s.department_id, s.salary, d.department_name
-            FROM STAFF s
-            LEFT JOIN DEPARTMENT d ON s.department_id = d.department_id
+            FROM hospital_admin.STAFF s
+            LEFT JOIN hospital_admin.DEPARTMENT d ON s.department_id = d.department_id
             ORDER BY s.staff_id
         """
         return await self.handle_execution(sql)
@@ -18,8 +18,8 @@ class StaffRepository(BaseRepo):
         sql = """
             SELECT s.staff_id, s.full_name, s.username, s.role, s.phone, s.email, 
                    s.department_id, s.salary, d.department_name
-            FROM STAFF s
-            LEFT JOIN DEPARTMENT d ON s.department_id = d.department_id
+            FROM hospital_admin.STAFF s
+            LEFT JOIN hospital_admin.DEPARTMENT d ON s.department_id = d.department_id
             WHERE s.staff_id = :id
         """
         rows = await self.handle_execution(sql, {"id": staff_id})
@@ -27,21 +27,21 @@ class StaffRepository(BaseRepo):
 
     async def get_by_username(self, username: str) -> Optional[tuple]:
         """Dùng để check duplicate username hoặc dùng cho login"""
-        sql = "SELECT staff_id FROM STAFF WHERE username = :u"
+        # Đã thêm hospital_admin. vào trước STAFF
+        sql = "SELECT staff_id FROM hospital_admin.STAFF WHERE username = :u"
         rows = await self.handle_execution(sql, {"u": username})
         return rows[0] if rows else None
 
     async def create(self, data: StaffCreate, hashed_password: str) -> bool:
-        # SỬA LẠI SQL: Đổi tên các bind variables tránh từ khóa (:user -> :u_name, :role -> :s_role)
         sql = """
-            INSERT INTO STAFF (full_name, username, password_hash, role, phone, email, department_id, salary)
+            INSERT INTO hospital_admin.STAFF (full_name, username, password_hash, role, phone, email, department_id, salary)
             VALUES (:name, :u_name, :pwd, :s_role, :phone, :email, :dept, :sal)
         """
         params = {
             "name": data.full_name,
-            "u_name": data.username,        # Đã đổi key khớp với :u_name
-            "pwd": hashed_password,         # Đã đổi key khớp với :pwd
-            "s_role": data.role,            # Đã đổi key khớp với :s_role
+            "u_name": data.username,        
+            "pwd": hashed_password,         
+            "s_role": data.role,            
             "phone": data.phone,
             "email": data.email,
             "dept": data.department_id,
@@ -51,7 +51,6 @@ class StaffRepository(BaseRepo):
         return True
 
     async def update(self, staff_id: int, data: StaffUpdate) -> bool:
-        # Cũng cần sửa hàm update vì nó có dùng :role
         fields = []
         params = {"id": staff_id}
 
@@ -60,7 +59,6 @@ class StaffRepository(BaseRepo):
             params["name"] = data.full_name
             
         if data.role is not None:
-            # SỬA: :role -> :s_role
             fields.append("role = :s_role")
             params["s_role"] = data.role
             
@@ -83,13 +81,15 @@ class StaffRepository(BaseRepo):
         if not fields:
             return False 
 
-        sql = f"UPDATE STAFF SET {', '.join(fields)} WHERE staff_id = :id"
+        # Đã đảm bảo có hospital_admin.
+        sql = f"UPDATE hospital_admin.STAFF SET {', '.join(fields)} WHERE staff_id = :id"
         
         await self.handle_execution(sql, params, commit=True)
         return True
 
     async def delete(self, staff_id: int) -> bool:
-        sql = "DELETE FROM STAFF WHERE staff_id = :id"
+        # Đã đảm bảo có hospital_admin.
+        sql = "DELETE FROM hospital_admin.STAFF WHERE staff_id = :id"
         await self.handle_execution(sql, {"id": staff_id}, commit=True)
         return True
     
@@ -99,7 +99,7 @@ class StaffRepository(BaseRepo):
         """
         sql = """
             SELECT staff_id, role, department_id, full_name 
-            FROM STAFF 
+            FROM hospital_admin.STAFF 
             WHERE username = :u
         """
         rows = await self.handle_execution(sql, {"u": username})
