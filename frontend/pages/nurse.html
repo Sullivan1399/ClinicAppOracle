@@ -27,6 +27,7 @@
         <a href="#" onclick="switchTab('patients', this)" class="active">👥 Quản Lý Bệnh Nhân</a>
         <a href="#" onclick="switchTab('waiting', this)">⏳ Hàng Chờ Khám</a>
         <a href="#" onclick="switchTab('pharmacy', this)">💊 Cấp Phát Thuốc</a>
+        <a href="#" onclick="switchTab('staff', this)">👨‍⚕️ Danh Sách Nhân Sự</a> </div>
     </div>
 
     <div class="content-with-sidebar">
@@ -67,6 +68,27 @@
             <h3>💊 Đơn Thuốc Chờ Cấp Phát</h3>
             <div id="prescriptionList" style="margin-top: 20px;">
                 </div>
+        </div>
+        <div id="tab-staff" class="tab-content">
+            <div class="page-header" style="margin-bottom: 20px;">
+                <h3>👨‍⚕️ Danh Sách Nhân Viên Phòng Khám</h3>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th>ID</th>
+                            <th>Họ Tên</th>
+                            <th>Vai Trò</th>
+                            <th>Khoa</th>
+                            <th>Số Điện Thoại</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     <div class="modal" id="patientModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">

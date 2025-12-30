@@ -22,6 +22,41 @@ function switchTab(tabName, element) {
     if (tabName === 'patients') loadPatients();
     if (tabName === 'waiting') loadWaitingVisits();
     if (tabName === 'pharmacy') loadPrescriptions();
+    if (tabName === 'staff') loadStaffList(); // GỌI HÀM MỚI
+}
+
+// HÀM MỚI: Lấy danh sách nhân sự
+async function loadStaffList() {
+    try {
+        const tbody = document.getElementById('staffTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Đang tải...</td></tr>';
+        
+        const data = await api.request('/staff'); // Gọi đến endpoint lấy nhân sự
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Không có dữ liệu nhân sự.</td></tr>';
+            return;
+        }
+
+        // Map vai trò sang tiếng Việt cho dễ đọc
+        const roles = { 'DOCTOR': 'Bác sĩ', 'NURSE': 'Y tá', 'ADMIN': 'Quản trị' };
+
+        tbody.innerHTML = data.map(s => `
+            <tr>
+                <td>${s.staff_id}</td>
+                <td><strong>${s.full_name}</strong></td>
+                <td><span class="badge" style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px;">
+                    ${roles[s.role] || s.role}
+                </span></td>
+                <td>${s.department_name || '---'}</td>
+                <td>${s.phone || '---'}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error("Lỗi tải staff:", error);
+        document.getElementById('staffTableBody').innerHTML = 
+            '<tr><td colspan="5" style="text-align: center; color: red;">Bạn không có quyền xem thông tin này hoặc lỗi kết nối.</td></tr>';
+    }
 }
 
 // 3. QUẢN LÝ BỆNH NHÂN
