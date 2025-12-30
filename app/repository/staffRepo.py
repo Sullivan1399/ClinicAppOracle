@@ -27,11 +27,46 @@ class StaffRepository(BaseRepo):
 
     async def get_by_username(self, username: str) -> Optional[tuple]:
         """Dùng để check duplicate username hoặc dùng cho login"""
-        # Đã thêm hospital_admin. vào trước STAFF
         sql = "SELECT staff_id FROM hospital_admin.STAFF WHERE username = :u"
         rows = await self.handle_execution(sql, {"u": username})
         return rows[0] if rows else None
 
+    async def create_full_staff(self, data: StaffCreate, hashed_password: str) -> bool:
+        # Gọi Stored Procedure để tạo Staff + DB User + Gán quyền + OLS Label
+        sql = """
+            BEGIN
+                hospital_admin.create_hospital_staff_user(
+                    p_full_name   => :full_name,
+                    p_username    => :username,
+                    p_password    => :raw_password,
+                    p_role        => :role,
+                    p_phone       => :phone,
+                    p_email       => :email,
+                    p_dept_id     => :dept_id,
+                    p_salary      => :salary,
+                    p_hashed_pass => :hashed_pass
+                );
+            END;
+        """
+        params = {
+            "full_name": data.full_name,
+            "username": data.username,
+            "raw_password": data.password, # Mật khẩu thô để tạo user Oracle
+            "role": data.role,
+            "phone": data.phone,
+            "email": data.email,
+            "dept_id": data.department_id,
+            "salary": data.salary,
+            "hashed_pass": hashed_password # Mật khẩu băm để lưu vào bảng STAFF
+        }
+
+        try:
+            await self.handle_execution(sql, params, commit=True)
+            return True
+        except Exception as e:
+            print(f"Error creating staff user: {e}")
+            raise e
+        
     async def create(self, data: StaffCreate, hashed_password: str) -> bool:
         sql = """
             INSERT INTO hospital_admin.STAFF (full_name, username, password_hash, role, phone, email, department_id, salary)

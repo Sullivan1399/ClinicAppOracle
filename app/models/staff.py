@@ -14,7 +14,8 @@ class StaffBase(BaseModel):
     salary: Optional[float] = None
 
 class StaffCreate(StaffBase):
-    password: str = Field(..., min_length=6, description="Mật khẩu text thường, sẽ được hash")
+    password: str = Field(..., description="Raw password for DB user creation")
+    role: str = Field(..., pattern="^(DOCTOR|NURSE|ADMIN)$")
 
 class StaffUpdate(BaseModel):
     full_name: Optional[str] = None

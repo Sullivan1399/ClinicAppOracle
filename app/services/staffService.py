@@ -34,18 +34,16 @@ class StaffService:
                 department_name=row[8] # Field này nullable nếu staff chưa gán khoa
             ) for row in rows
         ]
-
-    async def create_staff(self, data: StaffCreate):
-        # 1. Check trùng username
-        existing = await self.repo.get_by_username(data.username)
-        if existing:
-            raise HTTPException(status_code=400, detail="Username already exists")
-
-        # 2. Hash password
-        hashed_pwd = self.get_password_hash(data.password)
-
-        # 3. Create
-        return await self.repo.create(data, hashed_pwd)
+    
+    async def get_staff_by_id(self, staff_id: int) -> Optional[tuple]:
+        return await self.repo.get_by_id(staff_id)
+    
+    async def create_staff(self, staff_data: StaffCreate) -> bool:
+        existing_user = await self.repo.get_by_username(staff_data.username)
+        if existing_user:
+            raise ValueError(f"Username '{staff_data.username}' already exists.")
+        hashed_password = self.get_password_hash(staff_data.password)
+        return await self.repo.create_full_staff(staff_data, hashed_password)
 
     async def update_staff(self, staff_id: int, data: StaffUpdate):
         # Có thể thêm check logic: Ví dụ không cho phép đổi username

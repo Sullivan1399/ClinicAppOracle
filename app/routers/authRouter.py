@@ -26,6 +26,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                     role = row[0] if row else ""
                 except Exception:
                     raise HTTPException(status_code=401, detail="User cannot access staff data.")
+                
+        if not role:
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
+
     except oracledb.DatabaseError as e:
         error, = e.args
         print(f"Login failed: {error.message}")
