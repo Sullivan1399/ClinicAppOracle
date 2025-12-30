@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Quản Lý Phòng Khám</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+    <style>
+        .content-with-sidebar { margin-left: 260px; padding: 30px; }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        .form-group { margin-bottom: 15px; }
+        
+        /* Ẩn hiện các tab */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Style cho Sidebar active state */
+        .sidebar a.active { background-color: #34495e; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h2>🏥 Admin Dashboard</h2>
+        <div class="user-info">
+            <span id="userDisplay" style="margin-right: 15px; font-weight: bold;">Admin</span>
+            <button class="btn-logout" onclick="api.logout()">Đăng Xuất</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <a href="#" onclick="switchTab('dept', this)" class="active">🏢 Quản Lý Khoa</a>
+        <a href="#" onclick="switchTab('staff', this)">👨‍⚕️ Quản Lý Nhân Sự</a>
+        <a href="#" onclick="switchTab('medicine', this)">💊 Quản Lý Thuốc</a>
+    </div>
+
+    <div class="content-with-sidebar">
+        
+        <div id="tab-dept" class="tab-content active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3>Danh Sách Khoa</h3>
+                <button class="btn-primary" onclick="openDeptModal()">+ Thêm Khoa</button>
+            </div>
+            <div class="table-container">
+                <table id="deptTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên Khoa</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deptBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-staff" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3>Danh Sách Nhân Sự</h3>
+                <button class="btn-primary" onclick="openStaffModal()">+ Thêm Nhân Viên</button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchStaff" placeholder="🔍 Tìm nhân viên..." style="width: 100%; padding: 10px; margin-bottom:10px;">
+            </div>
+            <div class="table-container">
+                <table id="staffTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Họ Tên</th>
+                            <th>Username</th>
+                            <th>Vai Trò</th>
+                            <th>Khoa</th>
+                            <th>SĐT</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-medicine" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3>Danh Sách Thuốc</h3>
+                <button class="btn-primary" onclick="openMedModal()">+ Thêm Thuốc</button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchMed" placeholder="🔍 Tìm thuốc..." style="width: 100%; padding: 10px; margin-bottom:10px;">
+            </div>
+            <div class="table-container">
+                <table id="medTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên Thuốc</th>
+                            <th>Đơn Vị</th>
+                            <th>Giá (VNĐ)</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="medBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="deptModal">
+        <div class="modal-content">
+            <h3>Thông Tin Khoa</h3>
+            <form id="deptForm">
+                <input type="hidden" id="deptId">
+                <div class="form-group">
+                    <label>Tên Khoa *</label>
+                    <input type="text" id="deptName" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-danger" onclick="closeModal('deptModal')">Hủy</button>
+                    <button type="submit" class="btn-success">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="staffModal">
+        <div class="modal-content" style="width: 500px;">
+            <h3>Thông Tin Nhân Viên</h3>
+            <form id="staffForm">
+                <input type="hidden" id="staffId">
+                <div class="form-group">
+                    <label>Họ Tên *</label>
+                    <input type="text" id="staffName" required>
+                </div>
+                <div class="form-group">
+                    <label>Username *</label>
+                    <input type="text" id="staffUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>Mật Khẩu (Để trống nếu không đổi)</label>
+                    <input type="password" id="staffPass" placeholder="******">
+                </div>
+                <div class="form-group">
+                    <label>Vai Trò *</label>
+                    <select id="staffRole" required>
+                        <option value="DOCTOR">Bác Sĩ</option>
+                        <option value="NURSE">Y Tá / Tiếp Đón</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Thuộc Khoa</label>
+                    <select id="staffDept">
+                        <option value="">-- Chọn Khoa --</option>
+                        </select>
+                </div>
+                <div class="form-group">
+                    <label>Số Điện Thoại</label>
+                    <input type="text" id="staffPhone">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-danger" onclick="closeModal('staffModal')">Hủy</button>
+                    <button type="submit" class="btn-success">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="medModal">
+        <div class="modal-content">
+            <h3>Thông Tin Thuốc</h3>
+            <form id="medForm">
+                <input type="hidden" id="medId">
+                <div class="form-group">
+                    <label>Tên Thuốc *</label>
+                    <input type="text" id="medName" required>
+                </div>
+                <div class="form-group">
+                    <label>Đơn Vị *</label>
+                    <input type="text" id="medUnit" required>
+                </div>
+                <div class="form-group">
+                    <label>Giá (VNĐ) *</label>
+                    <input type="number" id="medPrice" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-danger" onclick="closeModal('medModal')">Hủy</button>
+                    <button type="submit" class="btn-success">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../static/js/api.js"></script>
+    <script src="../static/js/admin.js"></script>
+</body>
+</html>

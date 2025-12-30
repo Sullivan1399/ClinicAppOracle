@@ -5,30 +5,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginForm) {
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
             
-            errorMsg.innerText = "Đang xử lý...";
-            
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const btn = loginForm.querySelector('button');
+
+            // Reset trạng thái
+            errorMsg.innerText = "";
+            btn.disabled = true;
+            btn.innerText = "Đang xử lý...";
+
             try {
-                // Gọi qua class api đã tạo
-                const data = await api.login(username, password);
-                
-                // Lưu token
-                localStorage.setItem('access_token', data.access_token);
-                localStorage.setItem('user_role', data.role);
+                // Gọi hàm login đã sửa ở bước 1
+                const user = await api.login(usernameInput.value, passwordInput.value);
                 
                 // Điều hướng dựa trên Role
-                if (data.role === 'ADMIN') {
-                    window.location.href = 'dashboard_admin.html';
-                } else if (data.role === 'DOCTOR') {
-                    window.location.href = 'dashboard_doctor.html';
+                if (user && user.role) {
+                    api.redirectByRole(user.role);
                 } else {
-                     window.location.href = 'index.html';
+                    throw new Error("Lỗi: Token không chứa thông tin quyền hạn (Role)");
                 }
-                
+
             } catch (err) {
+                console.error(err);
                 errorMsg.innerText = err.message;
+                btn.disabled = false;
+                btn.innerText = "Đăng nhập";
             }
         };
     }
