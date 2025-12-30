@@ -8,6 +8,7 @@ class VisitRepository(BaseRepo):
         Lấy danh sách chờ khám của một Khoa.
         Điều kiện: Cùng department_id VÀ staff_id IS NULL (chưa có bác sĩ nhận)
         """
+        # Thêm tiền tố hospital_admin.
         sql = """
             SELECT v.visit_id, v.patient_id, v.staff_id, v.department_id, 
                    v.visit_date, 
@@ -16,9 +17,9 @@ class VisitRepository(BaseRepo):
                    p.full_name AS patient_name,
                    'Chưa chỉ định' AS doctor_name,
                    d.department_name
-            FROM VISIT v
-            JOIN PATIENT p ON v.patient_id = p.patient_id
-            LEFT JOIN DEPARTMENT d ON v.department_id = d.department_id
+            FROM hospital_admin.VISIT v
+            JOIN hospital_admin.PATIENT p ON v.patient_id = p.patient_id
+            LEFT JOIN hospital_admin.DEPARTMENT d ON v.department_id = d.department_id
             WHERE v.department_id = :did 
               AND v.staff_id IS NULL
             ORDER BY v.visit_date ASC
@@ -26,12 +27,12 @@ class VisitRepository(BaseRepo):
         return await self.handle_execution(sql, {"did": department_id})
 
     async def create(self, data: VisitCreate) -> bool:
-        """Y tá tạo: staff_id sẽ là NULL (mặc dù model có thể gửi lên, ta sẽ ignore hoặc set null)"""
+        """Y tá tạo: staff_id sẽ là NULL"""
+        # Thêm tiền tố hospital_admin.
         sql = """
-            INSERT INTO VISIT (patient_id, department_id, notes, staff_id)
+            INSERT INTO hospital_admin.VISIT (patient_id, department_id, notes, staff_id)
             VALUES (:pid, :did, :note, NULL) 
         """
-        # Lưu ý: staff_id set cứng là NULL để đảm bảo logic
         params = {
             "pid": data.patient_id,
             "did": data.department_id,
@@ -41,8 +42,9 @@ class VisitRepository(BaseRepo):
         return True
 
     async def claim_and_update(self, visit_id: int, doctor_id: int, data: VisitUpdate) -> bool:
+        # Thêm tiền tố hospital_admin.
         sql = """
-            UPDATE VISIT 
+            UPDATE hospital_admin.VISIT 
             SET staff_id = :sid, 
                 diagnosis = :diag, 
                 notes = :note,
@@ -57,7 +59,6 @@ class VisitRepository(BaseRepo):
             "vid": visit_id
         }
         
-        # Dùng Context Manager để tự động close cursor, tránh lỗi quên close hoặc lỗi await
         try:
             async with self.conn.cursor() as cursor:
                 await cursor.execute(sql, params)
@@ -71,8 +72,8 @@ class VisitRepository(BaseRepo):
     async def get_all(self, staff_id: int = None, patient_id: int = None) -> List[tuple]:
         """
         Lấy danh sách Visit để tra cứu lịch sử.
-        Dùng TO_CHAR cho các cột CLOB để tránh lỗi 500 khi serialize JSON.
         """
+        # Thêm tiền tố hospital_admin.
         sql = """
             SELECT v.visit_id, v.patient_id, v.staff_id, v.department_id, 
                    v.visit_date, 
@@ -81,15 +82,14 @@ class VisitRepository(BaseRepo):
                    p.full_name AS patient_name,
                    s.full_name AS doctor_name,
                    d.department_name
-            FROM VISIT v
-            JOIN PATIENT p ON v.patient_id = p.patient_id
-            LEFT JOIN STAFF s ON v.staff_id = s.staff_id -- LEFT JOIN vì staff_id có thể NULL
-            LEFT JOIN DEPARTMENT d ON v.department_id = d.department_id
+            FROM hospital_admin.VISIT v
+            JOIN hospital_admin.PATIENT p ON v.patient_id = p.patient_id
+            LEFT JOIN hospital_admin.STAFF s ON v.staff_id = s.staff_id 
+            LEFT JOIN hospital_admin.DEPARTMENT d ON v.department_id = d.department_id
             WHERE 1=1
         """
         params = {}
         
-        # Thêm điều kiện lọc động
         if staff_id:
             sql += " AND v.staff_id = :sid"
             params["sid"] = staff_id
@@ -105,8 +105,8 @@ class VisitRepository(BaseRepo):
     async def get_by_id(self, visit_id: int) -> Optional[tuple]:
         """
         Lấy chi tiết lượt khám theo ID.
-        Dùng TO_CHAR cho các cột CLOB (diagnosis, notes) để tránh lỗi 500.
         """
+        # Thêm tiền tố hospital_admin.
         sql = """
             SELECT v.visit_id, v.patient_id, v.staff_id, v.department_id, 
                    v.visit_date, 
@@ -115,10 +115,10 @@ class VisitRepository(BaseRepo):
                    p.full_name, 
                    s.full_name, 
                    d.department_name
-            FROM VISIT v
-            JOIN PATIENT p ON v.patient_id = p.patient_id
-            LEFT JOIN STAFF s ON v.staff_id = s.staff_id
-            LEFT JOIN DEPARTMENT d ON v.department_id = d.department_id
+            FROM hospital_admin.VISIT v
+            JOIN hospital_admin.PATIENT p ON v.patient_id = p.patient_id
+            LEFT JOIN hospital_admin.STAFF s ON v.staff_id = s.staff_id
+            LEFT JOIN hospital_admin.DEPARTMENT d ON v.department_id = d.department_id
             WHERE v.visit_id = :id
         """
         rows = await self.handle_execution(sql, {"id": visit_id})
@@ -128,10 +128,10 @@ class VisitRepository(BaseRepo):
         """
         Xóa lượt khám theo ID.
         """
-        sql = "DELETE FROM VISIT WHERE visit_id = :id"
+        # Thêm tiền tố hospital_admin.
+        sql = "DELETE FROM hospital_admin.VISIT WHERE visit_id = :id"
         
         try:
-            # Sử dụng async with để quản lý cursor an toàn
             async with self.conn.cursor() as cursor:
                 await cursor.execute(sql, {"id": visit_id})
                 await self.conn.commit()

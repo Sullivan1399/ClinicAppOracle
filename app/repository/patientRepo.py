@@ -4,26 +4,28 @@ from app.models.patient import PatientCreate, PatientUpdate
 
 class PatientRepository(BaseRepo):
     async def get_all(self) -> List[tuple]:
+        # Thêm tiền tố hospital_admin.
         sql = """
             SELECT patient_id, full_name, dob, gender, phone, address, insurance_number
-            FROM PATIENT
+            FROM hospital_admin.PATIENT
             ORDER BY patient_id DESC
         """
         return await self.handle_execution(sql)
 
     async def get_by_id(self, pat_id: int) -> Optional[tuple]:
+        # Thêm tiền tố hospital_admin.
         sql = """
             SELECT patient_id, full_name, dob, gender, phone, address, insurance_number
-            FROM PATIENT
+            FROM hospital_admin.PATIENT
             WHERE patient_id = :id
         """
         rows = await self.handle_execution(sql, {"id": pat_id})
         return rows[0] if rows else None
 
     async def create(self, data: PatientCreate) -> bool:
-        # Lưu ý: Đặt tên biến bind an toàn tránh từ khóa Oracle (p_*)
+        # Thêm tiền tố hospital_admin.
         sql = """
-            INSERT INTO PATIENT (full_name, dob, gender, phone, address, insurance_number)
+            INSERT INTO hospital_admin.PATIENT (full_name, dob, gender, phone, address, insurance_number)
             VALUES (:p_name, :p_dob, :p_gender, :p_phone, :p_addr, :p_ins)
         """
         params = {
@@ -38,7 +40,6 @@ class PatientRepository(BaseRepo):
         return True
 
     async def update(self, pat_id: int, data: PatientUpdate) -> bool:
-        # Xây dựng câu query động
         fields = []
         params = {"id": pat_id}
 
@@ -67,19 +68,16 @@ class PatientRepository(BaseRepo):
             params["p_ins"] = data.insurance_number
 
         if not fields:
-            return False # Không có gì để update
+            return False 
 
-        sql = f"UPDATE PATIENT SET {', '.join(fields)} WHERE patient_id = :id"
+        # Thêm tiền tố hospital_admin.
+        sql = f"UPDATE hospital_admin.PATIENT SET {', '.join(fields)} WHERE patient_id = :id"
         
         await self.handle_execution(sql, params, commit=True)
         return True
 
     async def delete(self, pat_id: int) -> bool:
-        sql = "DELETE FROM PATIENT WHERE patient_id = :id"
+        # Thêm tiền tố hospital_admin.
+        sql = "DELETE FROM hospital_admin.PATIENT WHERE patient_id = :id"
         await self.handle_execution(sql, {"id": pat_id}, commit=True)
         return True
-    
-    async def get_by_id(self, pid: int):
-        sql = "SELECT * FROM PATIENT WHERE patient_id = :id"
-        rows = await self.handle_execution(sql, {"id": pid})
-        return rows[0] if rows else None

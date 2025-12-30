@@ -218,36 +218,97 @@ function renderPrescription() {
         </tr>
     `).join('');
 }
+// --- QUẢN LÝ TAB ---
+function switchTab(tabName, element) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    if(element) element.classList.add('active');
 
+    if (tabName === 'exam') loadWaitingList();
+    if (tabName === 'history') loadExamHistory();
+    if (tabName === 'prescriptions') loadPrescriptionHistory();
+}
+
+// --- Lấy lịch sử khám (Visit COMPLETED) ---
+async function loadExamHistory() {
+    try {
+        const historyBody = document.getElementById('historyBody');
+        historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center">Đang tải...</td></tr>';
+        
+        // Gọi API /visit/history (Backend sẽ tự lấy staff_id từ Token)
+        const visits = await api.request('/visit/history'); 
+        
+        if (!visits || visits.length === 0) {
+            historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center">Bạn chưa có ca khám nào hoàn tất.</td></tr>';
+            return;
+        }
+
+        historyBody.innerHTML = visits.map(v => `
+            <tr>
+                <td>${new Date(v.visit_date).toLocaleString('vi-VN')}</td>
+                <td><b>${v.patient_name}</b></td>
+                <td>${v.diagnosis || '---'}</td>
+                <td>${v.notes || '---'}</td>
+                <td><span class="badge badge-success" style="background: #27ae60; color:white; padding: 3px 8px; border-radius:4px;">Đã khám</span></td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error("Lỗi history:", e);
+        document.getElementById('historyBody').innerHTML = `<tr><td colspan="5" style="color:red; text-align:center">Lỗi: ${e.message}</td></tr>`;
+    }
+}
+// --- Lấy danh sách đơn thuốc đã kê ---
+async function loadPrescriptionHistory() {
+    try {
+        const tbody = document.getElementById('presListBody');
+        tbody.innerHTML = '<tr><td colspan="5">Đang tải...</td></tr>';
+        
+        const presList = await api.request('/prescription/'); 
+        
+        tbody.innerHTML = presList.map(p => {
+            const drugDetails = p.details.map(d => `- ${d.medicine_name} (${d.quantity})`).join('<br>');
+            return `
+                <tr>
+                    <td>#${p.prescription_id}</td>
+                    <td>${new Date(p.created_date).toLocaleString('vi-VN')}</td>
+                    <td>Visit #${p.visit_id}</td>
+                    <td style="font-size: 0.9em;">${drugDetails}</td>
+                    <td>${p.notes || '---'}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        document.getElementById('presListBody').innerHTML = '<tr><td colspan="5" style="color:red">Không thể tải danh sách đơn thuốc</td></tr>';
+    }
+}
 // --- 4. Lưu Khám ---
-
 async function finishExam() {
     const visitId = document.getElementById('visitId').value;
     const diagnosis = document.getElementById('diagnosis').value;
     const notes = document.getElementById('notes').value;
 
-    if (!diagnosis) {
-        alert("Vui lòng nhập chẩn đoán bệnh!");
-        return;
-    }
-
     try {
-        // Gọi API Claim & Update
-        await api.request(`/visit/${visitId}/claim`, 'PUT', {
-            diagnosis: diagnosis,
-            notes: notes
-        });
+        // Cập nhật visit
+        await api.request(`/visit/${visitId}/claim`, 'PUT', { diagnosis, notes });
 
-        // Tạo đơn thuốc (giữ nguyên logic cũ)
         if (currentPrescription.length > 0) {
-            // ... (code tạo đơn thuốc cũ)
+            const prescriptionPayload = {
+                visit_id: parseInt(visitId),
+                // staff_id không cần gửi hoặc gửi null, Backend sẽ tự lấy từ token
+                notes: notes,
+                details: currentPrescription.map(item => ({
+                    medicine_id: item.medicine_id,
+                    quantity: parseInt(item.quantity),
+                    dosage: item.dosage
+                }))
+            };
+            await api.request(`/prescription/`, 'POST', prescriptionPayload);
         }
-
-        alert("Đã lưu bệnh án thành công!");
-        cancelExam(); // Quay lại danh sách
-
+        alert("Thành công!");
+        cancelExam();
     } catch (e) {
-        alert("Lỗi: " + e.message); // Nếu đã có bác sĩ khác khám, nó sẽ báo lỗi ở đây
-        loadWaitingList(); // Tải lại danh sách để cập nhật tình trạng mới nhất
+        alert("Lỗi: " + e.message);
     }
 }

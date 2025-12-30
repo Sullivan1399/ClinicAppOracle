@@ -11,11 +11,6 @@ class VisitService:
 
     async def get_visits(self, staff_id: Optional[int] = None, patient_id: Optional[int] = None) -> List[VisitResponse]:
         rows = await self.repo.get_all(staff_id, patient_id)
-        
-        # Mapping tuple từ DB sang Pydantic Model
-        # Thứ tự trong SQL: 
-        # 0:id, 1:pat_id, 2:stf_id, 3:dept_id, 4:date, 5:diag, 6:notes, 
-        # 7:pat_name, 8:doc_name, 9:dept_name
         return [
             VisitResponse(
                 visit_id=row[0],
@@ -23,14 +18,13 @@ class VisitService:
                 staff_id=row[2],
                 department_id=row[3],
                 visit_date=row[4],
-                diagnosis=row[5] if row[5] else None, # CLOB có thể trả về None hoặc LOB object
+                diagnosis=row[5] if row[5] else None,
                 notes=row[6] if row[6] else None,
                 patient_name=row[7],
                 doctor_name=row[8],
                 department_name=row[9]
             ) for row in rows
         ]
-
     async def get_visit_by_id(self, visit_id: int) -> VisitResponse:
         row = await self.repo.get_by_id(visit_id)
         if not row:

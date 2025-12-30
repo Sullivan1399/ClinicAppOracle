@@ -7,7 +7,7 @@ from app.models.prescription_detail import PrescriptionDetailCreate, Prescriptio
 
 class PrescriptionBase(BaseModel):
     visit_id: int
-    staff_id: int
+    staff_id: Optional[int] = None
     notes: Optional[str] = None
 
 class PrescriptionCreate(PrescriptionBase):

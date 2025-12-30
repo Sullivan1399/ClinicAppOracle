@@ -160,7 +160,7 @@ class ClinicAPI {
         switch (role) {
             case 'ADMIN': window.location.href = 'admin.html'; break;
             case 'DOCTOR': window.location.href = 'doctor.html'; break;
-            case 'NURSE': window.location.href = 'patients.html'; break; // Lưu ý: patients.html (có s)
+            case 'NURSE': window.location.href = 'nurse.html'; break; 
             default: window.location.href = 'login.html';
         }
     }

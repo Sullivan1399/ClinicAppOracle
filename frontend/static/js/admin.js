@@ -281,6 +281,116 @@ window.deleteMed = async (id) => {
         } catch(e) { alert(e.message); }
     }
 }
+// ============================================================
+// 4. AUDIT LOGIC (MỚI THÊM)
+// ============================================================
 
+async function loadAuditLogs() {
+    const tbody = document.getElementById('auditBody');
+    const jobEl = document.getElementById('auditJobStatus');
+    const policyEl = document.getElementById('auditPolicies');
+    
+    // 1. Lấy giá trị limit từ ô input (MỚI THÊM)
+    const limitInput = document.getElementById('auditLimit');
+    const limit = limitInput ? limitInput.value : 10; // Mặc định 50 nếu không tìm thấy
+
+    // 2. Tải Logs
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Đang tải dữ liệu...</td></tr>';
+    try {
+        // Truyền biến limit vào URL
+        const logs = await api.request(`/audit/logs?limit=${limit}`);
+        renderAuditTable(logs);
+    } catch (e) {
+        console.error("Lỗi tải logs:", e);
+        tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center">Không thể tải nhật ký: ${e.message}</td></tr>`;
+    }
+
+    // 3. Tải trạng thái Job (Giữ nguyên)
+    jobEl.innerHTML = 'Đang kiểm tra...';
+    try {
+        const jobStatus = await api.request('/audit/job-status');
+        renderJobStatus(jobStatus);
+    } catch (e) {
+        jobEl.innerHTML = `<span style="color:orange">⚠️ ${e.message}</span>`;
+    }
+
+    // 4. Tải Policy (Giữ nguyên)
+    policyEl.innerHTML = 'Đang kiểm tra...';
+    try {
+        const policies = await api.request('/audit/policies');
+        renderPolicies(policies);
+    } catch (e) {
+        policyEl.innerHTML = `<span style="color:red">Không thể lấy thông tin Policy</span>`;
+    }
+}
+
+function renderAuditTable(data) {
+    const tbody = document.getElementById('auditBody');
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Không có dữ liệu nhật ký</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(log => `
+        <tr>
+            <td style="font-size: 0.9em;">${new Date(log.event_timestamp).toLocaleString()}</td>
+            <td><strong>${log.db_username}</strong></td>
+            <td><span class="badge ${getActionColor(log.action_name)}">${log.action_name}</span></td>
+            <td>${log.object_name}</td>
+            <td style="font-family: monospace; font-size: 0.85em; color: #555;">${log.sql_text || '---'}</td>
+        </tr>
+    `).join('');
+}
+
+function getActionColor(action) {
+    if (action === 'DELETE') return 'badge-danger';
+    if (action === 'INSERT' || action === 'UPDATE') return 'badge-success';
+    return 'badge-info'; // SELECT
+}
+
+function renderJobStatus(job) {
+    const el = document.getElementById('auditJobStatus');
+    if (!job) {
+        el.innerHTML = '<span style="color:red">Job chưa được cấu hình!</span>';
+        return;
+    }
+    const stateColor = job.state === 'SCHEDULED' ? 'green' : 'orange';
+    el.innerHTML = `
+        <div><strong>Job:</strong> ${job.job_name}</div>
+        <div><strong>Trạng Thái:</strong> <span style="color:${stateColor}; font-weight:bold">${job.state}</span></div>
+        <div><strong>Lần Chạy Kế:</strong> ${new Date(job.next_run_date).toLocaleString()}</div>
+    `;
+}
+
+function renderPolicies(policies) {
+    const el = document.getElementById('auditPolicies');
+    if (!policies || policies.length === 0) {
+        el.innerHTML = '<span>Không có policy nào đang bật.</span>';
+        return;
+    }
+    el.innerHTML = policies.map(p => `
+        <div style="margin-bottom: 5px;">
+            <span class="badge badge-success">✔ ON</span> 
+            <strong>${p.policy_name}</strong> 
+            <small>(${p.enabled_option})</small>
+        </div>
+    `).join('');
+}
+
+// Cập nhật hàm switchTab để gọi loadAuditLogs khi chuyển tab
+const originalSwitchTab = window.switchTab; // Lưu hàm cũ nếu cần
+window.switchTab = function(tabName, element) {
+    // Logic cũ
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    if(element) element.classList.add('active');
+
+    // Logic mới: Load data tương ứng
+    if (tabName === 'dept') loadDepartments();
+    else if (tabName === 'staff') loadStaffs();
+    else if (tabName === 'medicine') loadMedicines();
+    else if (tabName === 'audit') loadAuditLogs(); // <--- THÊM DÒNG NÀY
+}
 // Khởi chạy mặc định: Load tab Department trước
 loadDepartments();

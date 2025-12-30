@@ -198,3 +198,65 @@ INSERT INTO PRESCRIPTION_DETAIL (prescription_id, medicine_id, quantity, dosage)
 INSERT INTO PRESCRIPTION_DETAIL (prescription_id, medicine_id, quantity, dosage) VALUES (15, 8, 1, 'Sát trùng vết thương');
 
 COMMIT;
+
+CREATE ROLE nurse_role;
+CREATE ROLE doctor_role;
+CREATE ROLE admin_role;
+GRANT CREATE SESSION TO admin_role, doctor_role, nurse_role;
+
+
+GRANT ALL ON DEPARTMENT TO admin_role;
+GRANT ALL ON MEDICINE TO admin_role;
+GRANT ALL ON STAFF TO admin_role;
+
+GRANT ALL ON PATIENT TO admin_role;
+GRANT ALL ON VISIT TO admin_role;
+
+GRANT ALL ON PRESCRIPTION TO admin_role;
+GRANT ALL ON PRESCRIPTION_DETAIL TO admin_role;
+
+---------------------------------------------------
+-- B. CẤP QUYỀN CHO BÁC SĨ (doctor_role)
+---------------------------------------------------
+-- 1. Xem danh mục chung
+GRANT SELECT ON DEPARTMENT TO doctor_role;
+GRANT SELECT ON MEDICINE TO doctor_role;
+
+-- 2. Xem danh sách nhân viên 
+-- (LƯU Ý: Bảng STAFF của bạn có cột 'password_hash'. 
+-- Cấp quyền SELECT trực tiếp này sẽ lộ mật khẩu mã hóa. 
+-- Xem phần Lời khuyên bảo mật bên dưới để xử lý).
+GRANT SELECT ON STAFF TO doctor_role; 
+
+-- 3. Hồ sơ bệnh nhân (Chỉ xem)
+GRANT SELECT ON PATIENT TO doctor_role;
+
+-- 4. Khám bệnh (Xem lịch sử & Cập nhật chẩn đoán)
+GRANT SELECT, UPDATE ON VISIT TO doctor_role;
+
+-- 5. Kê đơn (Toàn quyền xử lý đơn thuốc)
+GRANT SELECT, INSERT, UPDATE ON PRESCRIPTION TO doctor_role;
+GRANT SELECT, INSERT, UPDATE ON PRESCRIPTION_DETAIL TO doctor_role;
+
+---------------------------------------------------
+-- C. CẤP QUYỀN CHO Y TÁ (nurse_role)
+---------------------------------------------------
+-- 1. Xem danh mục
+GRANT SELECT ON DEPARTMENT TO nurse_role;
+GRANT SELECT ON MEDICINE TO nurse_role;
+GRANT SELECT ON STAFF TO nurse_role; -- (Cũng bị lộ password_hash, cần xử lý)
+
+-- 2. Tiếp nhận bệnh nhân (Thêm/Sửa hồ sơ hành chính)
+GRANT SELECT, INSERT, UPDATE ON PATIENT TO nurse_role;
+
+-- 3. Quản lý lượt khám (Tạo mới)
+GRANT SELECT, INSERT ON VISIT TO nurse_role;
+
+-- 4. Sửa lượt khám (QUAN TRỌNG)
+-- Y tá chỉ được sửa thông tin hành chính, KHÔNG được sửa 'diagnosis' hay 'notes' của bác sĩ.
+-- Dựa trên cột trong bảng VISIT của bạn:
+GRANT UPDATE (patient_id, staff_id, visit_date) ON VISIT TO nurse_role;
+
+-- 5. Đơn thuốc (Chỉ xem để lấy thuốc/hướng dẫn)
+GRANT SELECT ON PRESCRIPTION TO nurse_role;
+GRANT SELECT ON PRESCRIPTION_DETAIL TO nurse_role;
