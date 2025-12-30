@@ -21,15 +21,17 @@ class Settings(BaseSettings):
     ORACLE_SERVICE_PASSWORD: str = "tmp"
 
     # Pool config
-    DB_POOL_ALIAS: str = "hospital_pool"
-    DB_POOL_MIN: int = 1
-    DB_POOL_MAX: int = 25
-    DB_POOL_INCREMENT: int = 1
-    DB_POOL_HOMOGENEOUS: bool = False # Heterogeneous pool required for proxy auth
+    # DB_POOL_ALIAS: str = "hospital_pool"
+    # DB_POOL_MIN: int = 1
+    # DB_POOL_MAX: int = 25
+    # DB_POOL_INCREMENT: int = 1
+    # DB_POOL_HOMOGENEOUS: bool = False # Heterogeneous pool required for proxy auth
 
-    # JWT Auth
+    # JWT Auth and Cryptography
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 5
+    DB_PASSWORD_ENC_KEY: str = "" # Key for encrypting/decrypting DB passwords
+
 
 settings = Settings()

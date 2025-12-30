@@ -7,15 +7,9 @@ from oracledb import AsyncConnection
 from app.services.patientService import PatientService
 from app.models.patient import PatientResponse, PatientCreate, PatientUpdate
 from app.utils.dependencies import get_patient_service
+
 router = APIRouter()
 
-
-@router.get("/patients")
-async def list_patients(db = Depends(get_db)):
-    async with db.cursor() as cur:
-        await cur.execute("SELECT patient_id, full_name FROM hospital_admin.patient FETCH FIRST 20 ROWS ONLY")
-        rows = await cur.fetchall()
-        return [{"patient_id": r[0], "full_name": r[1]} for r in rows]
     
 @router.get("/", response_model=List[PatientResponse])
 async def read_patients(service: PatientService = Depends(get_patient_service)):

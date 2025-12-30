@@ -1,8 +1,12 @@
-from fastapi import Request, HTTPException, status, Depends
+import oracledb
+import jwt
+from fastapi import Request, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import AsyncGenerator
-from oracledb import AsyncConnection
 
+from app.config.settings import settings
 from app.utils.helper import await_if_needed
+from app.utils.security import decrypt_db_password
 from app.services.authService import get_current_user
 from app.services.departmentService import DepartmentService
 from app.services.staffService import StaffService
@@ -10,47 +14,64 @@ from app.services.patientService import PatientService
 from app.services.medicineService import MedicineService
 from app.services.prescriptionService import PrescriptionService
 from app.services.visitService import VisitService
-
 from app.models.staff import StaffInfo
-# Dependency: Acquire connection from global pool AS PROXY
-async def get_db(request: Request, current_user: str = Depends(get_current_user)) -> AsyncGenerator:
-    pool = getattr(request.app.state, "db_pool", None)
-    if pool is None:
-        raise HTTPException(status_code=500, detail="DB pool has not been initialized.")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# Dependency to get DB credentials include current user and password from token
+async def get_db_credentials(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        username = payload.get("sub")
+        encrypted_pass = payload.get("db_pass")
+        
+        if not username or not encrypted_pass:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+            
+        password = decrypt_db_password(encrypted_pass)
+        return username, password
+        
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception) as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+    
+# Dependency: Open a new Standalone DB connection per request
+async def get_db(creds: tuple = Depends(get_db_credentials)) -> AsyncGenerator:
+    username, password = creds
+    dsn = f'{settings.ORACLE_HOST}:{settings.ORACLE_PORT}/{settings.SERVICE_NAME}'
+    
+    print(f"DEBUG >> Opening Standalone Connection for: {username}")
     
     try:
-        if current_user:
-            maybe_cm = pool.acquire(user=current_user)
-        else:
-            maybe_cm = pool.acquire()
-        cm = await await_if_needed(maybe_cm)
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"DB acquire failed: {e}")
-
-    try:
-        # Use async with to ensure the connection remains open for the handler code
-        async with cm as conn:
+        # Tạo kết nối Async mới
+        conn = await oracledb.connect_async(user=username, password=password, dsn=dsn)
+        
+        try:
             yield conn
-    finally:
-        pass
+        finally:
+            await conn.close()
+            print(f"DEBUG >> Closed Connection for: {username}")
+            
+    except oracledb.DatabaseError as e:
+        error, = e.args
+        raise HTTPException(status_code=400, detail=f"DB Connection Error: {error.message}")
 
 # Dependency to init Service with DB connection
-def get_service(conn: AsyncConnection = Depends(get_db)) -> DepartmentService:
+def get_service(conn = Depends(get_db)) -> DepartmentService:
     return DepartmentService(conn)
 
-def get_staff_service(conn: AsyncConnection = Depends(get_db)) -> StaffService:
+def get_staff_service(conn = Depends(get_db)) -> StaffService:
     return StaffService(conn)
 
-def get_patient_service(conn: AsyncConnection = Depends(get_db)) -> PatientService:
+def get_patient_service(conn = Depends(get_db)) -> PatientService:
     return PatientService(conn)
 
-def get_medicine_service(conn: AsyncConnection = Depends(get_db)) -> MedicineService:
+def get_medicine_service(conn = Depends(get_db)) -> MedicineService:
     return MedicineService(conn)
 
-def get_prescription_service(conn: AsyncConnection = Depends(get_db)) -> PrescriptionService:
+def get_prescription_service(conn = Depends(get_db)) -> PrescriptionService:
     return PrescriptionService(conn)
 
-def get_visit_service(conn: AsyncConnection = Depends(get_db)) -> VisitService:
+def get_visit_service(conn = Depends(get_db)) -> VisitService:
     return VisitService(conn)
 
 async def get_current_staff_details(
