@@ -61,7 +61,9 @@
     <div class="sidebar">
         <a href="#" onclick="switchTab('exam', this)" class="active">🏥 Khám Bệnh</a>
         <a href="#" onclick="switchTab('history', this)">📜 Lịch Sử Khám</a>
+        <a href="#" onclick="switchTab('visit', this)">🎫 Quản Lý Lượt Khám</a> 
         <a href="#" onclick="switchTab('prescriptions', this)">💊 Đơn Thuốc Đã Kê</a>
+        <a href="#" onclick="switchTab('staff', this)">👨‍⚕️ Danh Sách Nhân Sự</a>
     </div>
 
     <div class="content-with-sidebar">
@@ -147,6 +149,48 @@
                         </tr>
                     </thead>
                     <tbody id="presListBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="tab-staff" class="tab-content">
+            <h3>👨‍⚕️ Danh Sách Nhân Viên Phòng Khám</h3>
+            <div class="table-container" style="margin-top: 20px;">
+                <table>
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th>ID</th>
+                            <th>Họ Tên</th>
+                            <th>Vai Trò</th>
+                            <th>Khoa</th>
+                            <th>Số Điện Thoại</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id="tab-visit" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3>🎫 Danh Sách Các Lượt Khám Hệ Thống</h3>
+                <button class="btn-primary" onclick="loadAllVisits()">🔄 Làm mới</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th>ID</th>
+                            <th>Thời Gian</th>
+                            <th>Bệnh Nhân</th>
+                            <th>Bác Sĩ Đảm Nhiệm</th>
+                            <th>Khoa</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="visitTableBody">
+                        <tr><td colspan="6" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>

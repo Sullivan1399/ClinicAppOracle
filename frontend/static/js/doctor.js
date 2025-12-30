@@ -223,14 +223,97 @@ function switchTab(tabName, element) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
     
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    if(element) element.classList.add('active');
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+        if(element) element.classList.add('active');
+    }
 
+    // Xử lý load dữ liệu theo tab
     if (tabName === 'exam') loadWaitingList();
     if (tabName === 'history') loadExamHistory();
     if (tabName === 'prescriptions') loadPrescriptionHistory();
+    if (tabName === 'staff') loadStaffList();
+    if (tabName === 'visit') loadAllVisits(); // GỌI HÀM MỚI TẠI ĐÂY
 }
 
+// HÀM MỚI: Tải toàn bộ danh sách Visit mà bác sĩ có quyền xem
+async function loadAllVisits() {
+    try {
+        const tbody = document.getElementById('visitTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Đang tải...</td></tr>';
+        
+        // Gọi API lấy danh sách visit chung (Backend xử lý VPD dựa trên bác sĩ đang đăng nhập)
+        const data = await api.request('/visit'); 
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Không tìm thấy lượt khám nào.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(v => {
+            // Xác định trạng thái dựa trên việc có bác sĩ đảm nhiệm chưa
+            const isCompleted = v.diagnosis && v.diagnosis !== '---';
+            const statusClass = isCompleted ? 'badge-success' : 'badge-info';
+            const statusText = isCompleted ? 'Đã khám' : (v.staff_id ? 'Đang khám' : 'Chờ khám');
+
+            return `
+                <tr>
+                    <td>#${v.visit_id}</td>
+                    <td>${new Date(v.visit_date).toLocaleString('vi-VN')}</td>
+                    <td><strong>${v.patient_name}</strong></td>
+                    <td>${v.doctor_name || '<i style="color:gray;">Chưa nhận ca</i>'}</td>
+                    <td>${v.department_name}</td>
+                    <td>
+                        <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-size: 0.8em; color: white; background-color: ${isCompleted ? '#27ae60' : (v.staff_id ? '#3498db' : '#e67e22')};">
+                            ${statusText}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error("Lỗi tải lượt khám:", error);
+        document.getElementById('visitTableBody').innerHTML = 
+            `<tr><td colspan="6" style="text-align: center; color: red;">Lỗi: ${error.message}</td></tr>`;
+    }
+}
+
+// HÀM MỚI: Tải danh sách nhân sự
+async function loadStaffList() {
+    try {
+        const tbody = document.getElementById('staffTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Đang tải...</td></tr>';
+        
+        const data = await api.request('/staff'); // Gọi API lấy danh sách nhân viên
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Không có dữ liệu nhân sự.</td></tr>';
+            return;
+        }
+
+        // Map vai trò sang tiếng Việt
+        const roles = { 'DOCTOR': 'Bác sĩ', 'NURSE': 'Y tá', 'ADMIN': 'Quản trị' };
+
+        tbody.innerHTML = data.map(s => `
+            <tr>
+                <td>${s.staff_id}</td>
+                <td><strong>${s.full_name}</strong></td>
+                <td>
+                    <span class="badge" style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
+                        ${roles[s.role] || s.role}
+                    </span>
+                </td>
+                <td>${s.department_name || '---'}</td>
+                <td>${s.phone || '---'}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error("Lỗi tải staff:", error);
+        document.getElementById('staffTableBody').innerHTML = 
+            '<tr><td colspan="5" style="text-align: center; color: red;">Lỗi tải dữ liệu hoặc bạn không có quyền xem.</td></tr>';
+    }
+}
 // --- Lấy lịch sử khám (Visit COMPLETED) ---
 async function loadExamHistory() {
     try {
