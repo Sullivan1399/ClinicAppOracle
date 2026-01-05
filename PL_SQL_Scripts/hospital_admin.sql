@@ -204,59 +204,529 @@ CREATE ROLE doctor_role;
 CREATE ROLE admin_role;
 GRANT CREATE SESSION TO admin_role, doctor_role, nurse_role;
 
+-- cấp quyền cho admin_role
+GRANT SELECT, INSERT, UPDATE ON DEPARTMENT TO admin_role;
+GRANT SELECT, INSERT, UPDATE ON STAFF TO admin_role;
+GRANT SELECT ON VISIT TO admin_role;
 
-GRANT ALL ON DEPARTMENT TO admin_role;
-GRANT ALL ON MEDICINE TO admin_role;
-GRANT ALL ON STAFF TO admin_role;
+GRANT SELECT ON DEPARTMENT TO admin_role;
+GRANT SELECT ON MEDICINE TO admin_role;
+GRANT SELECT ON STAFF TO admin_role;
+GRANT SELECT ON PATIENT TO admin_role;
+GRANT SELECT ON VISIT TO admin_role;
+GRANT SELECT ON PRESCRIPTION TO admin_role;
+GRANT SELECT ON PRESCRIPTION_DETAIL TO admin_role;
 
-GRANT ALL ON PATIENT TO admin_role;
-GRANT ALL ON VISIT TO admin_role;
-
-GRANT ALL ON PRESCRIPTION TO admin_role;
-GRANT ALL ON PRESCRIPTION_DETAIL TO admin_role;
+GRANT EXECUTE ON DBMS_RLS TO admin_role;
+GRANT EXECUTE ON DBMS_FGA TO admin_role;
+GRANT EXECUTE ON DBMS_REDACT TO admin_role;
+GRANT CREATE ANY CONTEXT TO admin_role;
+GRANT SELECT ON DBA_FGA_AUDIT_TRAIL TO admin_role;
 
 ---------------------------------------------------
 -- B. CẤP QUYỀN CHO BÁC SĨ (doctor_role)
 ---------------------------------------------------
--- 1. Xem danh mục chung
+GRANT SELECT ON STAFF TO doctor_role;
 GRANT SELECT ON DEPARTMENT TO doctor_role;
 GRANT SELECT ON MEDICINE TO doctor_role;
-
--- 2. Xem danh sách nhân viên 
--- (LƯU Ý: Bảng STAFF của bạn có cột 'password_hash'. 
--- Cấp quyền SELECT trực tiếp này sẽ lộ mật khẩu mã hóa. 
--- Xem phần Lời khuyên bảo mật bên dưới để xử lý).
-GRANT SELECT ON STAFF TO doctor_role; 
-
--- 3. Hồ sơ bệnh nhân (Chỉ xem)
 GRANT SELECT ON PATIENT TO doctor_role;
-
--- 4. Khám bệnh (Xem lịch sử & Cập nhật chẩn đoán)
+-- Quyền thao tác
 GRANT SELECT, UPDATE ON VISIT TO doctor_role;
-
--- 5. Kê đơn (Toàn quyền xử lý đơn thuốc)
 GRANT SELECT, INSERT, UPDATE ON PRESCRIPTION TO doctor_role;
 GRANT SELECT, INSERT, UPDATE ON PRESCRIPTION_DETAIL TO doctor_role;
-
 ---------------------------------------------------
 -- C. CẤP QUYỀN CHO Y TÁ (nurse_role)
 ---------------------------------------------------
--- 1. Xem danh mục
+GRANT SELECT ON STAFF TO nurse_role;
 GRANT SELECT ON DEPARTMENT TO nurse_role;
 GRANT SELECT ON MEDICINE TO nurse_role;
-GRANT SELECT ON STAFF TO nurse_role; -- (Cũng bị lộ password_hash, cần xử lý)
-
--- 2. Tiếp nhận bệnh nhân (Thêm/Sửa hồ sơ hành chính)
-GRANT SELECT, INSERT, UPDATE ON PATIENT TO nurse_role;
-
--- 3. Quản lý lượt khám (Tạo mới)
-GRANT SELECT, INSERT ON VISIT TO nurse_role;
-
--- 4. Sửa lượt khám (QUAN TRỌNG)
--- Y tá chỉ được sửa thông tin hành chính, KHÔNG được sửa 'diagnosis' hay 'notes' của bác sĩ.
--- Dựa trên cột trong bảng VISIT của bạn:
-GRANT UPDATE (patient_id, staff_id, visit_date) ON VISIT TO nurse_role;
-
--- 5. Đơn thuốc (Chỉ xem để lấy thuốc/hướng dẫn)
 GRANT SELECT ON PRESCRIPTION TO nurse_role;
 GRANT SELECT ON PRESCRIPTION_DETAIL TO nurse_role;
+
+GRANT SELECT, INSERT, UPDATE ON PATIENT TO nurse_role;
+GRANT SELECT, INSERT, UPDATE ON VISIT TO nurse_role;
+GRANT UPDATE (patient_id, staff_id, visit_date) ON VISIT TO nurse_role;
+
+--------------------------------------------------
+-- Tạo profile
+--------------------------------------------------
+ALTER SYSTEM SET RESOURCE_LIMIT = TRUE;
+
+
+
+CREATE PROFILE PF_HOSPITAL_ADMIN LIMIT
+    FAILED_LOGIN_ATTEMPTS 3         -- Nhập sai 3 lần sẽ bị khóa
+    PASSWORD_LIFE_TIME 60           -- Mật khẩu hết hạn sau 60 ngày
+    PASSWORD_REUSE_TIME 365         -- Không được dùng lại mật khẩu cũ trong 1 năm
+    PASSWORD_REUSE_MAX 5            -- Không trùng với 5 mật khẩu gần nhất
+    PASSWORD_LOCK_TIME 1            -- Khóa tài khoản trong 1 ngày nếu vi phạm
+    PASSWORD_GRACE_TIME 7           -- Cảnh báo đổi mật khẩu trước 7 ngày
+    SESSIONS_PER_USER 1             -- Mỗi Admin chỉ được mở 1 phiên làm việc (tránh share acc)
+    IDLE_TIME 30                    -- Treo máy 30 phút tự động ngắt kết nối
+    CONNECT_TIME UNLIMITED;         -- Không giới hạn tổng thời gian kết nối (để làm việc lâu dài)
+
+
+CREATE PROFILE PF_MEDICAL_STAFF LIMIT
+    -- 1. Quản lý Mật khẩu
+    FAILED_LOGIN_ATTEMPTS 5         -- Cho phép sai 5 lần (đỡ bị khóa nhầm lúc vội)
+    PASSWORD_LIFE_TIME 90           -- Mật khẩu hết hạn sau 90 ngày
+    PASSWORD_REUSE_TIME 180         -- Không dùng lại trong 6 tháng
+    PASSWORD_LOCK_TIME 1/24         -- Chỉ khóa 1 tiếng (để còn quay lại làm việc sớm)
+    PASSWORD_GRACE_TIME 7
+    SESSIONS_PER_USER 2             -- Cho phép đăng nhập trên 2 thiết bị (ví dụ: PC và Máy tính bảng)
+    IDLE_TIME 60                    -- Treo máy 60 phút mới ngắt (dài hơn Admin)
+    CONNECT_TIME 600;               -- Giới hạn 1 ca làm việc (10 tiếng), tránh treo nick qua đêm
+
+-- 1. Gán cho nhóm ADMIN (admin01, admin02)
+ALTER USER admin01 PROFILE PF_HOSPITAL_ADMIN;
+ALTER USER admin02 PROFILE PF_HOSPITAL_ADMIN;
+
+-- 2. Gán cho nhóm DOCTOR (Bác sĩ)
+ALTER USER doctor_an PROFILE PF_MEDICAL_STAFF;
+ALTER USER doctor_tam PROFILE PF_MEDICAL_STAFF;
+ALTER USER doctor_quoc PROFILE PF_MEDICAL_STAFF;
+ALTER USER doctor_nhi PROFILE PF_MEDICAL_STAFF;
+ALTER USER doctor_hung PROFILE PF_MEDICAL_STAFF;
+ALTER USER doctor_thao PROFILE PF_MEDICAL_STAFF;
+
+-- 3. Gán cho nhóm NURSE (Y tá)
+ALTER USER nurse_phuong PROFILE PF_MEDICAL_STAFF;
+ALTER USER nurse_thu PROFILE PF_MEDICAL_STAFF;
+ALTER USER nurse_tu PROFILE PF_MEDICAL_STAFF;
+ALTER USER nurse_hoa PROFILE PF_MEDICAL_STAFF;
+------------------------------------------
+-- Tạo 1 số user 
+------------------------------------------
+CREATE USER admin01 IDENTIFIED BY 123;
+CREATE USER doctor_an IDENTIFIED BY 123;
+CREATE USER nurse_tu IDENTIFIED BY 123;
+GRANT admin_role TO admin01;
+GRANT doctor_role TO doctor_an;
+GRANT nurse_role TO nurse_tu;
+GRANT CONNECT, RESOURCE TO admin01, doctor_an, nurse_tu;
+ALTER USER admin01 QUOTA UNLIMITED ON users; 
+ALTER USER doctor_an QUOTA UNLIMITED ON users; 
+ALTER USER nurse_tu QUOTA UNLIMITED ON users;
+---------------------------------------------------------------------
+-- VPD POLICY
+---------------------------------------------------------------------
+-- VPD 1: Ẩn cột lương (salary) và mật khẩu (password_hash) trên bảng STAFF
+-- Tạo  Context
+CREATE CONTEXT CTX_HOSPITAL USING HOSPITAL_ADMIN.PKG_SET_CONTEXT;
+--  Tạo Package để set Context
+CREATE OR REPLACE PACKAGE HOSPITAL_ADMIN.PKG_SET_CONTEXT IS
+    PROCEDURE set_role(p_role VARCHAR2);
+END;
+/
+CREATE OR REPLACE PACKAGE BODY HOSPITAL_ADMIN.PKG_SET_CONTEXT IS
+    PROCEDURE set_role(p_role VARCHAR2) IS
+    BEGIN
+        DBMS_SESSION.SET_CONTEXT('CTX_HOSPITAL', 'ROLE', p_role);
+    END;
+END;
+/
+--  Cấp quyền cho mọi người chạy Package này
+GRANT EXECUTE ON HOSPITAL_ADMIN.PKG_SET_CONTEXT TO PUBLIC;
+--  Tạo Trigger Đăng nhập
+CREATE OR REPLACE TRIGGER TRG_GET_HOSPITAL_ROLE
+AFTER LOGON ON DATABASE
+DECLARE
+    v_role VARCHAR2(20);
+    v_user VARCHAR2(50);
+BEGIN
+    v_user := SYS_CONTEXT('USERENV', 'SESSION_USER');
+    -- Chỉ chạy trigger nếu user nằm trong bảng STAFF
+    BEGIN
+        -- Đọc Role trực tiếp từ bảng STAFF
+        SELECT role INTO v_role
+        FROM HOSPITAL_ADMIN.STAFF
+        WHERE UPPER(username) = v_user;
+        
+        -- Lưu vào Context
+        HOSPITAL_ADMIN.PKG_SET_CONTEXT.set_role(v_role);
+        
+    EXCEPTION 
+        WHEN NO_DATA_FOUND THEN 
+            -- Nếu user không có trong bảng STAFF thì gán là NULL
+            HOSPITAL_ADMIN.PKG_SET_CONTEXT.set_role(NULL);
+        WHEN OTHERS THEN
+            NULL; 
+    END;
+END;
+/
+CREATE OR REPLACE FUNCTION HOSPITAL_ADMIN.fn_vpd_salary (
+    schema_p IN VARCHAR2,
+    table_p  IN VARCHAR2
+) RETURN VARCHAR2
+IS
+    v_role_context VARCHAR2(20);
+BEGIN
+    -- Lấy Role từ Context (Do Trigger nạp vào)
+    v_role_context := SYS_CONTEXT('CTX_HOSPITAL', 'ROLE');
+
+    -- Nếu Role là ADMIN -> Xem hết (Trả về NULL)
+    IF v_role_context = 'ADMIN' 
+       OR SYS_CONTEXT('USERENV', 'ISDBA') = 'TRUE' 
+    THEN
+        RETURN NULL;
+    END IF;
+
+    -- Còn lại -> Chỉ xem của mình
+    RETURN 'UPPER(username) = SYS_CONTEXT(''USERENV'', ''SESSION_USER'')';
+END;
+/
+GRANT EXECUTE ON HOSPITAL_ADMIN.fn_vpd_salary TO PUBLIC;
+-- Áp dụng Policy 
+BEGIN
+    DBMS_RLS.DROP_POLICY('HOSPITAL_ADMIN', 'STAFF', 'vpd_policy_salary');
+EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN
+    DBMS_RLS.ADD_POLICY (
+        object_schema     => 'HOSPITAL_ADMIN',
+        object_name       => 'STAFF',
+        policy_name       => 'vpd_policy_salary',
+        function_schema   => 'HOSPITAL_ADMIN',
+        policy_function   => 'fn_vpd_salary',
+        statement_types   => 'SELECT',
+        sec_relevant_cols => 'salary',
+        sec_relevant_cols_opt => DBMS_RLS.ALL_ROWS
+    );
+END;
+/
+--------------------------------------------------------------------------------------
+-- VPD 2: Ngăn chặn nhân viên thường nhìn thấy thông tin tài khoản của Admin trong danh sách nhân sự (tránh Social Engineering).
+CREATE OR REPLACE FUNCTION HOSPITAL_ADMIN.fn_vpd_hide_admins (
+    schema_p IN VARCHAR2,
+    table_p  IN VARCHAR2
+) RETURN VARCHAR2
+IS
+    v_role_context VARCHAR2(20);
+BEGIN
+    -- Lấy Role từ Context (Do Trigger nạp vào lúc đăng nhập)
+    v_role_context := SYS_CONTEXT('CTX_HOSPITAL', 'ROLE');
+
+    -- Nếu Context là 'ADMIN' 
+    -- HOẶC là chủ sở hữu (HOSPITAL_ADMIN, SYS)
+    -- HOẶC là DBA -> Thì được xem hết (không áp dụng bộ lọc)
+    IF v_role_context = 'ADMIN' 
+       OR SYS_CONTEXT('USERENV', 'SESSION_USER') IN ('HOSPITAL_ADMIN', 'SYS') 
+       OR SYS_CONTEXT('USERENV', 'ISDBA') = 'TRUE' 
+    THEN
+        RETURN NULL; -- Trả về NULL nghĩa là không có điều kiện lọc WHERE
+    END IF;
+    RETURN 'UPPER(role) != ''ADMIN''';
+END;
+/
+
+-- CẤP QUYỀN THỰC THI CHO PUBLIC (ĐỂ POLICY CÓ THỂ CHẠY)
+GRANT EXECUTE ON HOSPITAL_ADMIN.fn_vpd_hide_admins TO PUBLIC;
+
+--GẮN POLICY VÀO BẢNG STAFF
+BEGIN
+    DBMS_RLS.ADD_POLICY (
+        object_schema    => 'HOSPITAL_ADMIN',
+        object_name      => 'STAFF',
+        policy_name      => 'vpd_hide_admin_rows',
+        function_schema  => 'HOSPITAL_ADMIN',
+        policy_function  => 'fn_vpd_hide_admins',
+        statement_types  => 'SELECT',
+        update_check     => TRUE,
+        static_policy    => FALSE -- False để nó kiểm tra lại Context mỗi khi có truy vấn
+    );
+END;
+/
+-- VPD 3: Admin và nurse sẽ có thể select, doctor sẽ chỉ thấy các đơn thuốc do chính mình tạo ra (staff_id).
+CREATE OR REPLACE FUNCTION policy_auth_prescription (
+    schema_p IN VARCHAR2,
+    table_p  IN VARCHAR2
+) RETURN VARCHAR2 IS
+    v_username VARCHAR2(50);
+    v_role     VARCHAR2(20);
+    v_staff_id NUMBER;
+BEGIN
+    v_username := SYS_CONTEXT('USERENV', 'SESSION_USER');
+
+    -- Admin/System thấy hết
+    IF v_username = 'HOSPITAL_ADMIN' OR v_username = 'SYS' THEN RETURN '1=1'; END IF;
+
+    IF get_user_staff_info(v_username, v_role, v_staff_id) THEN
+        IF v_role = 'DOCTOR' THEN
+            -- [NÂNG CẤP]: Kiểm tra thêm điều kiện EXISTS trong bảng VISIT
+            -- Nghĩa là: Chỉ được thao tác nếu staff_id là của mình 
+            -- VÀ visit_id đó cũng do chính mình khám (staff_id trong bảng VISIT trùng với mình)
+            RETURN 'staff_id = ' || v_staff_id || 
+                   ' AND EXISTS (SELECT 1 FROM VISIT v 
+                                 WHERE v.visit_id = ' || table_p || '.visit_id 
+                                 AND v.staff_id = ' || v_staff_id || ')';
+                                 
+        ELSIF v_role IN ('NURSE', 'ADMIN') THEN
+            RETURN '1=1';
+        ELSE
+            RETURN '1=0';
+        END IF;
+    ELSE
+        RETURN '1=0';
+    END IF;
+END;
+/
+-- VPD 4: Admin và nurse sẽ có thể select, doctor sẽ chỉ thấy các prescription_detail do chính mình tạo ra (staff_id).
+CREATE OR REPLACE FUNCTION policy_auth_pres_detail (
+    schema_p IN VARCHAR2,
+    table_p  IN VARCHAR2
+) RETURN VARCHAR2 IS
+    v_username VARCHAR2(50);
+    v_role     VARCHAR2(20);
+    v_staff_id NUMBER;
+BEGIN
+    v_username := SYS_CONTEXT('USERENV', 'SESSION_USER');
+
+    -- 1. Admin hệ thống và Schema chủ được thấy hết
+    IF v_username = 'HOSPITAL_ADMIN' OR v_username = 'SYS' THEN 
+        RETURN '1=1'; 
+    END IF;
+
+    -- 2. Lấy thông tin nhân viên
+    IF get_user_staff_info(v_username, v_role, v_staff_id) THEN
+        
+        -- TRƯỜNG HỢP BÁC SĨ (DOCTOR)
+        IF v_role = 'DOCTOR' THEN
+            -- Logic: Chỉ thấy dòng chi tiết thuốc NẾU đơn thuốc cha (PRESCRIPTION) có staff_id là của mình
+            -- Sử dụng 'EXISTS' để kết nối sang bảng PRESCRIPTION
+            RETURN 'EXISTS (
+                        SELECT 1 FROM PRESCRIPTION p 
+                        WHERE p.prescription_id = ' || table_p || '.prescription_id 
+                        AND p.staff_id = ' || v_staff_id || '
+                    )';
+        
+        -- TRƯỜNG HỢP Y TÁ (NURSE) HOẶC ADMIN BỆNH VIỆN
+        ELSIF v_role IN ('NURSE', 'ADMIN') THEN
+            RETURN '1=1'; -- Thấy hết để lấy thuốc/quản lý
+            
+        ELSE
+            RETURN '1=0'; -- Role lạ chặn hết
+        END IF;
+    ELSE
+        RETURN '1=0'; -- Không phải nhân viên chặn hết
+    END IF;
+END;
+/
+--------------------------------------------------------------------
+-- OLS
+--------------------------------------------------------------------
+EXEC sa_components.create_level('HOSPITAL_OLS', 1000, 'PUB',  'NEW_VISIT');
+EXEC sa_components.create_level('HOSPITAL_OLS', 2000, 'CONF', 'IN_PROGRESS');
+EXEC sa_components.create_level('HOSPITAL_OLS', 3000, 'SEC',  'DIAGNOSED');
+
+EXEC sa_components.create_compartment('HOSPITAL_OLS', 10, 'INT', 'Internal Medicine');
+EXEC sa_components.create_compartment('HOSPITAL_OLS', 20, 'SUR', 'Surgery');
+EXEC sa_components.create_compartment('HOSPITAL_OLS', 30, 'PED', 'Pediatrics');
+EXEC sa_components.create_compartment('HOSPITAL_OLS', 40, 'ER', 'Emergency');
+EXEC sa_components.create_compartment('HOSPITAL_OLS', 50, 'ADM', 'Administration');
+
+EXEC sa_components.create_group('HOSPITAL_OLS', 1, 'CLI', 'Clinical');
+
+
+BEGIN
+    sa_user_admin.set_user_labels (
+        policy_name => 'HOSPITAL_OLS',
+        user_name => 'NURSE_TU',
+        max_read_label => 'PUB::CLI',
+        max_write_label => 'PUB::CLI',
+        def_label => 'PUB::CLI',
+        row_label => 'PUB::CLI'
+    );
+END;
+BEGIN
+    sa_user_admin.set_user_labels (
+        policy_name => 'HOSPITAL_OLS',
+        user_name => 'DOCTOR_AN',
+        max_read_label => 'SEC:INT:CLI',
+        max_write_label => 'SEC:INT:CLI',
+        def_label => 'SEC:INT:CLI',
+        row_label => 'SEC:INT:CLI'
+    );
+END;
+BEGIN
+    sa_user_admin.set_user_labels (
+        policy_name => 'HOSPITAL_OLS',
+        user_name => 'ADMIN01',
+        max_read_label => 'SEC::CLI',
+        max_write_label => NULL,
+        min_write_label => NULL,
+        def_label => 'SEC::CLI',
+        row_label => 'SEC::CLI'
+    );
+END;
+BEGIN 
+    sa_user_admin.set_user_privs (
+        policy_name => 'HOSPITAL_OLS',
+        user_name => 'HOSPITAL_ADMIN',
+        PRIVILEGES => 'FULL'
+    );
+END;
+
+-- Tạo hàm gán nhãn
+CREATE OR REPLACE FUNCTION hospital_admin.gen_visit_label (
+    p_department_id NUMBER,
+    p_diagnosis CLOB,
+    p_staffid NUMBER
+) RETURN LBACSYS.LBAC_LABEL
+AS
+    v_label VARCHAR2(100);
+BEGIN
+    IF p_staffid IS NULL THEN
+        v_label := 'PUB:';
+    ELSIF p_diagnosis IS NULL THEN
+        v_label := 'CONF:';
+    ELSE
+        v_label := 'SEC:';
+    END IF;
+
+    CASE p_department_id
+        WHEN 1 THEN v_label := v_label || 'INT';
+        WHEN 2 THEN v_label := v_label || 'SUR';
+        WHEN 3 THEN v_label := v_label || 'PED';
+        WHEN 4 THEN v_label := v_label || 'ER';
+        ELSE v_label := v_label || 'ADM';
+    END CASE;
+
+    v_label := v_label || ':CLI';
+
+    RETURN TO_LBAC_DATA_LABEL('HOSPITAL_OLS', v_label);
+END;
+
+
+GRANT execute ON hospital_admin.gen_visit_label TO lbacsys;
+GRANT EXECUTE ON hospital_admin.gen_visit_label TO LBAC_TRIGGER;
+
+-- Áp dụng chính sách với option => HIDE và NO_CONTROL để gán nhãn dữ liệu thủ công cho các dữ liệu đã thêm trước đó
+UPDATE visit
+SET ols_column = char_to_label('HOSPITAL_OLS', 'SEC:INT:CLI')
+WHERE department_id = 1;
+-- Khoa Ngoại
+UPDATE visit
+SET ols_column = char_to_label('HOSPITAL_OLS', 'SEC:SUR:CLI')
+WHERE department_id = 2;
+-- Khoa Nhi
+UPDATE visit
+SET ols_column = char_to_label('HOSPITAL_OLS', 'SEC:PED:CLI')
+WHERE department_id = 3;
+-- Khoa Cấp cứu
+UPDATE visit
+SET ols_column = char_to_label('HOSPITAL_OLS', 'SEC:ER:CLI')
+WHERE department_id = 4;
+-- Hành chính (nếu có)
+UPDATE visit
+SET ols_column = char_to_label('HOSPITAL_OLS', 'SEC:ADM:CLI')
+WHERE department_id = 5;
+COMMIT;
+--  Xóa chính sách đã áp dụng và thêm lại chính sách với các option mới cùng gắn hàm đã tạo ở trước để đánh nhán dữ liệu
+BEGIN 
+    sa_policy_admin.remove_table_policy (
+        policy_name => 'HOSPITAL_OLS',
+        schema_name => 'HOSPITAL_ADMIN',
+        table_name => 'VISIT'
+    ); 
+    
+    sa_policy_admin.apply_table_policy (
+        policy_name => 'HOSPITAL_OLS',
+        schema_name => 'HOSPITAL_ADMIN',
+        table_name => 'VISIT',
+        table_options => 'HIDE,READ_CONTROL,WRITE_CONTROL,CHECK_CONTROL',
+        label_function => 'hospital_admin.gen_visit_label(:new.department_id, :new.diagnosis, :new.staff_id)'
+    ); 
+END;
+
+-- Tạo Stored Procedure (Wrapper Procedure) để tự động tạo oracle db user và tự động gán nhãn user label.
+-- 1. Hàm trợ giúp: Map Department ID sang OLS Compartment
+CREATE OR REPLACE FUNCTION get_ols_compartment(p_dept_id NUMBER) 
+RETURN VARCHAR2 IS
+BEGIN
+    CASE p_dept_id
+        WHEN 1 THEN RETURN 'INT'; -- Nội
+        WHEN 2 THEN RETURN 'SUR'; -- Ngoại
+        WHEN 3 THEN RETURN 'PED'; -- Nhi
+        WHEN 4 THEN RETURN 'ER';  -- Cấp cứu
+        WHEN 5 THEN RETURN 'ADM'; -- Hành chính
+        ELSE RETURN NULL;
+    END CASE;
+END;
+/
+
+-- 2. Procedure chính: Tạo User, Gán Role, Gán OLS Label, Insert bảng Staff
+CREATE OR REPLACE PROCEDURE create_hospital_staff_user (
+    p_full_name     IN VARCHAR2,
+    p_username      IN VARCHAR2,
+    p_password      IN VARCHAR2, -- Mật khẩu thô để tạo DB User
+    p_role          IN VARCHAR2, -- 'DOCTOR', 'NURSE', 'ADMIN'
+    p_phone         IN VARCHAR2,
+    p_email         IN VARCHAR2,
+    p_dept_id       IN NUMBER,
+    p_salary        IN NUMBER,
+    p_hashed_pass   IN VARCHAR2  -- Mật khẩu hash để lưu vào bảng STAFF (cho app login)
+) AUTHID CURRENT_USER AS
+    v_sql           VARCHAR2(1000);
+    v_ols_label     VARCHAR2(200);
+    v_compartment   VARCHAR2(10);
+    v_db_role       VARCHAR2(50);
+BEGIN
+    -- A. Insert vào bảng STAFF (để lưu hồ sơ nhân sự)
+    INSERT INTO STAFF (full_name, username, password_hash, role, phone, email, department_id, salary)
+    VALUES (p_full_name, p_username, p_hashed_pass, p_role, p_phone, p_email, p_dept_id, p_salary);
+
+    -- B. Tạo Oracle User (Dynamic SQL vì DDL không chạy trực tiếp trong PL/SQL)
+    v_sql := 'CREATE USER ' || p_username || ' IDENTIFIED BY "' || p_password || '" DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS';
+    EXECUTE IMMEDIATE v_sql;
+
+    v_sql := 'GRANT CONNECT, RESOURCE TO ' || p_username;
+    EXECUTE IMMEDIATE v_sql;
+
+    -- C. Gán Role tương ứng
+    IF p_role = 'ADMIN' THEN
+        v_db_role := 'admin_role';
+    ELSIF p_role = 'DOCTOR' THEN
+        v_db_role := 'doctor_role';
+    ELSIF p_role = 'NURSE' THEN
+        v_db_role := 'nurse_role';
+    END IF;
+    
+    IF v_db_role IS NOT NULL THEN
+        v_sql := 'GRANT ' || v_db_role || ' TO ' || p_username;
+        EXECUTE IMMEDIATE v_sql;
+    END IF;
+
+    -- D. Gán nhãn OLS (Logic phức tạp nhất)
+    -- Lấy mã khoa (Compartment)
+    v_compartment := get_ols_compartment(p_dept_id);
+    
+    IF v_compartment IS NOT NULL THEN
+        -- Logic tạo label string dựa trên Role
+        IF p_role = 'NURSE' THEN
+            v_ols_label := 'PUB:INT,SUR,PED,ER,ADM:CLI';
+            
+        ELSIF p_role = 'DOCTOR' THEN
+            v_ols_label := 'SEC:' || v_compartment || ':CLI';
+            
+        ELSIF p_role = 'ADMIN' THEN
+            v_ols_label := 'SEC:INT,SUR,PED,ER,ADM:CLI';
+        END IF;
+
+        -- Gọi hàm OLS policy (Cần quyền LBAC_DBA hoặc quyền execute trên package này)
+        sa_user_admin.set_user_labels (
+            policy_name     => 'HOSPITAL_OLS',
+            user_name       => UPPER(p_username),
+            max_read_label  => v_ols_label,
+            max_write_label => v_ols_label,
+            def_label       => v_ols_label,
+            row_label       => v_ols_label
+        );
+    END IF;
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
